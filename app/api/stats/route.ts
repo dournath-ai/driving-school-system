@@ -22,7 +22,9 @@ export async function GET() {
             });
             const lessonsCount = await prisma.lesson.count({
                 where: {
-                    drivingSchoolId
+                    student: {
+                        drivingSchoolId
+                    }
                 }
             });
             const quizAttemptsCount = await prisma.quizAttempt.count({

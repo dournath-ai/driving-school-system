@@ -69,27 +69,32 @@ async function main() {
         {
             text: "What does a red traffic light mean?",
             options: ["Stop", "Go", "Yield", "Speed Up"],
-            correctAnswer: 0
+            correctAnswer: 0,
+            series: 1
         },
         {
             text: "When can you overtake on the left?",
             options: ["Assuming it is safe to do so", "Never", "Always", "Only on Sundays"],
-            correctAnswer: 0
+            correctAnswer: 0,
+            series: 1
         },
         {
             text: "What is the speed limit in urban areas (unless otherwise posted)?",
             options: ["30 km/h", "50 km/h", "70 km/h", "90 km/h"],
-            correctAnswer: 1
+            correctAnswer: 1,
+            series: 1
         },
         {
             text: "What does a flashing yellow light mean?",
             options: ["Stop", "Proceed with caution", "Go fast", "Turn around"],
-            correctAnswer: 1
+            correctAnswer: 1,
+            series: 1
         },
         {
             text: "Who has the right of way at a four-way stop?",
             options: ["The biggest car", "The person who arrived first", "The person to the left", "No one"],
-            correctAnswer: 1
+            correctAnswer: 1,
+            series: 1
         }
     ];
 
