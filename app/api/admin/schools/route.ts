@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../../auth/[...nextauth]/route";
-import { Role } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 export async function GET() {
     const session = await getServerSession(authOptions);
 
-    if (!session || session.user.role !== Role.ADMIN) {
+    if (!session || session.user.role !== Prisma.Role.ADMIN) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -19,7 +19,7 @@ export async function GET() {
                     select: { users: true }
                 },
                 users: {
-                    where: { role: Role.MANAGER },
+                    where: { role: Prisma.Role.MANAGER },
                     select: { id: true, name: true, email: true }
                 }
             }
@@ -34,7 +34,7 @@ export async function GET() {
 export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
 
-    if (!session || session.user.role !== Role.ADMIN) {
+    if (!session || session.user.role !== Prisma.Role.ADMIN) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -77,7 +77,7 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
     const session = await getServerSession(authOptions);
 
-    if (!session || session.user.role !== Role.ADMIN) {
+    if (!session || session.user.role !== Prisma.Role.ADMIN) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -105,7 +105,7 @@ export async function PATCH(req: Request) {
                         select: { users: true }
                     },
                     users: {
-                        where: { role: Role.MANAGER },
+                        where: { role: Prisma.Role.MANAGER },
                         select: { id: true, name: true, email: true }
                     }
                 }
@@ -115,7 +115,7 @@ export async function PATCH(req: Request) {
             if (managerId) {
                 // Remove old manager assignment
                 const oldManager = await tx.user.findFirst({
-                    where: { drivingSchoolId: id, role: Role.MANAGER }
+                    where: { drivingSchoolId: id, role: Prisma.Role.MANAGER }
                 });
                 
                 if (oldManager && oldManager.id !== managerId) {
@@ -145,7 +145,7 @@ export async function PATCH(req: Request) {
 export async function DELETE(req: Request) {
     const session = await getServerSession(authOptions);
 
-    if (!session || session.user.role !== Role.ADMIN) {
+    if (!session || session.user.role !== Prisma.Role.ADMIN) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
