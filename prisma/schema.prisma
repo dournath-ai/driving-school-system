@@ -1,0 +1,194 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  engineType = "binary"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?  @db.Text
+  access_token       String?  @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?  @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  password  String?  // Made optional for OAuth support
+  role      Role     @default(STUDENT)
+  emailVerified DateTime?
+  image         String?
+  
+  isActive            Boolean @default(true)
+  connectionLimit     Int?    // in minutes, null means unlimited/default
+  totalConnectionTime Int     @default(0) // in minutes
+
+  accounts      Account[]
+  sessions      Session[]
+  connectionLogs ConnectionLog[]
+  quizAttempts   QuizAttempt[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  drivingSchoolId String?
+  drivingSchool   DrivingSchool? @relation(fields: [drivingSchoolId], references: [id])
+
+  studentLessons    Lesson[] @relation("StudentLessons")
+  instructorLessons Lesson[] @relation("InstructorLessons")
+}
+
+model DrivingSchool {
+  id        String   @id @default(cuid())
+  name      String
+  address   String?
+  phone     String?
+  email     String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users     User[]
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  INSTRUCTOR
+  STUDENT
+}
+
+model Vehicle {
+  id          String   @id @default(cuid())
+  model       String
+  plateNumber String   @unique
+  status      VehicleStatus @default(ACTIVE)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  lessons     Lesson[]
+}
+
+enum VehicleStatus {
+  ACTIVE
+  MAINTENANCE
+  RETIRED
+}
+
+model Lesson {
+  id           String   @id @default(cuid())
+  startTime    DateTime
+  endTime      DateTime
+  status       LessonStatus @default(SCHEDULED)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  studentId    String
+  student      User     @relation("StudentLessons", fields: [studentId], references: [id])
+  
+  instructorId String
+  instructor   User     @relation("InstructorLessons", fields: [instructorId], references: [id])
+
+  vehicleId    String
+  vehicle      Vehicle  @relation(fields: [vehicleId], references: [id])
+}
+
+enum LessonStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+// System Features
+
+model ConnectionLog {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  loginTime DateTime  @default(now())
+  logoutTime DateTime?
+  duration  Int?      // in minutes
+}
+
+model SystemSettings {
+  id                     String @id @default("settings")
+  defaultConnectionLimit Int    @default(120) // 2 hours default
+  quizTimeLimit          Int    @default(900)  // 900 seconds = 15 minutes default
+  questionsPerQuiz       Int    @default(30)
+  questionTimeLimit      Int    @default(30)   // 30 seconds per question default
+}
+
+// Quiz System
+
+model Question {
+  id            String   @id @default(cuid())
+  text          String
+  image         String?
+  options       String[] // Array of strings for options
+  correctAnswer Int      // Index of the correct option (0-3)
+  series        Int      // Series number (1-15)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  quizResults   QuizResult[]
+}
+
+model QuizAttempt {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  score     Int
+  totalQuestions Int
+  passed    Boolean
+  series    Int?         // Series number (1-15), null for mock exam
+  isMockExam Boolean     @default(false)
+  startTime DateTime     @default(now())
+  endTime   DateTime?
+  
+  results   QuizResult[]
+}
+
+model QuizResult {
+  id             String      @id @default(cuid())
+  attemptId      String
+  attempt        QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId     String
+  question       Question    @relation(fields: [questionId], references: [id])
+  selectedAnswer Int
+  isCorrect      Boolean
+}
