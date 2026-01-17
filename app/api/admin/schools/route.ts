@@ -10,7 +10,7 @@ export async function GET() {
     if (!session || session.user.role !== Prisma.Role.ADMIN) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
+ 
     try {
         const schools = await prisma.drivingSchool.findMany({
             orderBy: { name: 'asc' },
