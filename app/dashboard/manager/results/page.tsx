@@ -199,82 +199,157 @@ export default function ManagerResultsPage() {
                         <p className="mt-2 text-muted">{t("managerResults.loading", "Chargement des résultats...")}</p>
                     </Card.Body>
                 ) : (
-                    <div className="table-responsive">
-                        <Table responsive hover className="mb-0 align-middle">
-                            <thead className="bg-light">
-                                <tr>
-                                    <th className="ps-4 py-3">{t("managerResults.student", "Étudiant")}</th>
-                                    <th className="py-3">{t("managerResults.score", "Score")}</th>
-                                    <th className="py-3">{t("managerResults.status", "Statut")}</th>
-                                    <th className="py-3">{t("managerResults.date", "Date")}</th>
-                                    <th className="text-end pe-4 py-3">{t("common.actions", "Actions")}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredAttempts.map((attempt) => {
-                                    const percentage = Math.round((attempt.score / attempt.totalQuestions) * 100);
-                                    return (
-                                        <tr key={attempt.id} className="result-row">
-                                            <td className="ps-4 py-3">
-                                                <div className="d-flex align-items-center gap-3">
-                                                    <div className="bg-primary bg-opacity-10 p-2 rounded-circle">
-                                                        <User size={18} className="text-primary" />
+                    <>
+                        {/* Desktop Table View */}
+                        <div className="table-responsive d-none d-md-block">
+                            <Table responsive hover className="mb-0 align-middle">
+                                <thead className="bg-light">
+                                    <tr>
+                                        <th className="ps-4 py-3">{t("managerResults.student", "Étudiant")}</th>
+                                        <th className="py-3">{t("managerResults.score", "Score")}</th>
+                                        <th className="py-3">{t("managerResults.status", "Statut")}</th>
+                                        <th className="py-3">{t("managerResults.date", "Date")}</th>
+                                        <th className="text-end pe-4 py-3">{t("common.actions", "Actions")}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredAttempts.map((attempt) => {
+                                        const percentage = Math.round((attempt.score / attempt.totalQuestions) * 100);
+                                        return (
+                                            <tr key={attempt.id} className="result-row">
+                                                <td className="ps-4 py-3">
+                                                    <div className="d-flex align-items-center gap-3">
+                                                        <div className="bg-primary bg-opacity-10 p-2 rounded-circle">
+                                                            <User size={18} className="text-primary" />
+                                                        </div>
+                                                        <div>
+                                                            <div className="fw-bold">{attempt.user.name || t("managerResults.student", "Étudiant")}</div>
+                                                            <div className="small text-muted">{attempt.user.email}</div>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <div className="fw-bold">{attempt.user.name || t("managerResults.student", "Étudiant")}</div>
-                                                        <div className="small text-muted">{attempt.user.email}</div>
+                                                </td>
+                                                <td className="py-3">
+                                                    <div className="fw-bold">{attempt.score} / {attempt.totalQuestions}</div>
+                                                    <ProgressBar
+                                                        now={percentage}
+                                                        variant={attempt.passed ? "success" : "danger"}
+                                                        className="mt-1"
+                                                        style={{ height: "6px", width: "80px" }}
+                                                    />
+                                                </td>
+                                                <td className="py-3">
+                                                    {attempt.passed ? (
+                                                        <Badge bg="success" className="bg-opacity-10 text-success border-success border d-inline-flex align-items-center gap-1 px-3 py-2">
+                                                            <CheckCircle2 size={12} /> {t("managerResults.passed", "Réussi")}
+                                                        </Badge>
+                                                    ) : (
+                                                        <Badge bg="danger" className="bg-opacity-10 text-danger border-danger border d-inline-flex align-items-center gap-1 px-3 py-2">
+                                                            <XCircle size={12} /> {t("managerResults.failed", "Échec")}
+                                                        </Badge>
+                                                    )}
+                                                </td>
+                                                <td className="py-3">
+                                                    <div className="d-flex align-items-center gap-1 text-muted small">
+                                                        <Calendar size={14} />
+                                                        {new Date(attempt.startTime).toLocaleDateString()}
                                                     </div>
-                                                </div>
-                                            </td>
-                                            <td className="py-3">
-                                                <div className="fw-bold">{attempt.score} / {attempt.totalQuestions}</div>
-                                                <ProgressBar
-                                                    now={percentage}
-                                                    variant={attempt.passed ? "success" : "danger"}
-                                                    className="mt-1"
-                                                    style={{ height: "6px", width: "80px" }}
-                                                />
-                                            </td>
-                                            <td className="py-3">
-                                                {attempt.passed ? (
-                                                    <Badge bg="success" className="bg-opacity-10 text-success border-success border d-inline-flex align-items-center gap-1 px-3 py-2">
-                                                        <CheckCircle2 size={12} /> {t("managerResults.passed", "Réussi")}
-                                                    </Badge>
-                                                ) : (
-                                                    <Badge bg="danger" className="bg-opacity-10 text-danger border-danger border d-inline-flex align-items-center gap-1 px-3 py-2">
-                                                        <XCircle size={12} /> {t("managerResults.failed", "Échec")}
-                                                    </Badge>
-                                                )}
-                                            </td>
-                                            <td className="py-3">
-                                                <div className="d-flex align-items-center gap-1 text-muted small">
-                                                    <Calendar size={14} />
-                                                    {new Date(attempt.startTime).toLocaleDateString()}
-                                                </div>
-                                            </td>
-                                            <td className="text-end pe-4 py-3">
-                                                <Button
-                                                    variant="light"
-                                                    size="sm"
-                                                    className="rounded-circle p-2"
-                                                    onClick={() => fetchAttemptDetails(attempt.id)}
-                                                >
-                                                    <Eye size={18} className="text-secondary" />
-                                                </Button>
+                                                </td>
+                                                <td className="text-end pe-4 py-3">
+                                                    <Button
+                                                        variant="light"
+                                                        size="sm"
+                                                        className="rounded-circle p-2"
+                                                        onClick={() => fetchAttemptDetails(attempt.id)}
+                                                    >
+                                                        <Eye size={18} className="text-secondary" />
+                                                    </Button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                    {filteredAttempts.length === 0 && (
+                                        <tr>
+                                            <td colSpan={5} className="text-center py-5 text-muted">
+                                                {t("managerResults.notFound", "Aucun résultat trouvé.")}
                                             </td>
                                         </tr>
-                                    );
-                                })}
-                                {filteredAttempts.length === 0 && (
-                                    <tr>
-                                        <td colSpan={5} className="text-center py-5 text-muted">
-                                            {t("managerResults.notFound", "Aucun résultat trouvé.")}
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </Table>
-                    </div>
+                                    )}
+                                </tbody>
+                            </Table>
+                        </div>
+
+                        {/* Mobile Card View */}
+                        <div className="d-md-none p-3">
+                            {filteredAttempts.length === 0 ? (
+                                <div className="text-center py-5 text-muted">
+                                    {t("managerResults.notFound", "Aucun résultat trouvé.")}
+                                </div>
+                            ) : (
+                                <div className="d-flex flex-column gap-3">
+                                    {filteredAttempts.map((attempt) => {
+                                        const percentage = Math.round((attempt.score / attempt.totalQuestions) * 100);
+                                        return (
+                                            <Card key={attempt.id} className="border shadow-sm">
+                                                <Card.Body className="p-3">
+                                                    <div className="d-flex justify-content-between align-items-start mb-3">
+                                                        <div className="d-flex align-items-center gap-2">
+                                                            <div className="bg-primary bg-opacity-10 p-2 rounded-circle">
+                                                                <User size={16} className="text-primary" />
+                                                            </div>
+                                                            <div>
+                                                                <div className="fw-bold small">{attempt.user.name || t("managerResults.student", "Étudiant")}</div>
+                                                                <div className="text-muted" style={{ fontSize: "0.75rem" }}>{attempt.user.email}</div>
+                                                            </div>
+                                                        </div>
+                                                        <Button
+                                                            variant="light"
+                                                            size="sm"
+                                                            className="rounded-circle p-2"
+                                                            onClick={() => fetchAttemptDetails(attempt.id)}
+                                                        >
+                                                            <Eye size={16} className="text-secondary" />
+                                                        </Button>
+                                                    </div>
+
+                                                    <div className="d-flex justify-content-between align-items-center mb-2">
+                                                        <div>
+                                                            <div className="text-muted small">{t("managerResults.score", "Score")}</div>
+                                                            <div className="fw-bold">{attempt.score} / {attempt.totalQuestions}</div>
+                                                        </div>
+                                                        <div>
+                                                            {attempt.passed ? (
+                                                                <Badge bg="success" className="px-2 py-1">
+                                                                    <CheckCircle2 size={10} className="me-1" />
+                                                                    {t("managerResults.passed", "Réussi")}
+                                                                </Badge>
+                                                            ) : (
+                                                                <Badge bg="danger" className="px-2 py-1">
+                                                                    <XCircle size={10} className="me-1" />
+                                                                    {t("managerResults.failed", "Échec")}
+                                                                </Badge>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    <ProgressBar
+                                                        now={percentage}
+                                                        variant={attempt.passed ? "success" : "danger"}
+                                                        className="mb-2"
+                                                        style={{ height: "6px" }}
+                                                    />
+
+                                                    <div className="d-flex align-items-center gap-1 text-muted small">
+                                                        <Calendar size={12} />
+                                                        {new Date(attempt.startTime).toLocaleDateString()} {new Date(attempt.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    </div>
+                                                </Card.Body>
+                                            </Card>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    </>
                 )}
             </Card>
 
