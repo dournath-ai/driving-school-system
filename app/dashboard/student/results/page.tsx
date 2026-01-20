@@ -173,9 +173,9 @@ export default function ResultsPage() {
                                 <Card.Body className="p-4">
                                     <div className="d-flex justify-content-between align-items-start mb-2">
                                         <div>
-                                            <div className="small text-muted mb-1">Moyenne</div>
+                                            <div className="small text-muted mb-1">{t("results.average", "Meilleur Score")}</div>
                                             <div className="h3 fw-bold mb-0">{averageScore}%</div>
-                                            <div className="small text-muted">Score moyen</div>
+                                            <div className="small text-muted">{t("results.averageDesc", "Score moyen")}</div>
                                         </div>
                                         <div className="bg-info bg-opacity-10 p-2 rounded-3">
                                             <TrendingUp size={24} className="text-info" />
@@ -192,13 +192,13 @@ export default function ResultsPage() {
                             <h5 className="mb-0 fw-bold">{t("results.title", "Mes Résultats")}</h5>
                         </Card.Header>
                         <Card.Body className="p-0">
-                            <div className="table-responsive">
+                            {/* Desktop Table View */}
+                            <div className="table-responsive d-none d-md-block">
                                 <table className="table table-hover mb-0 align-middle">
                                     <thead className="bg-light">
                                         <tr>
                                             <th className="ps-4 py-3">{t("results.dateTime", "Date & Heure")}</th>
                                             <th className="text-center py-3">{t("results.score", "Score")}</th>
-                                            <th className="text-center py-3">{t("results.percentage", "Pourcentage")}</th>
                                             <th className="text-center py-3">{t("results.percentage", "Pourcentage")}</th>
                                             <th className="text-center py-3">{t("results.result", "Résultat")}</th>
                                             <th className="text-end pe-4 py-3">{t("common.actions", "Actions")}</th>
@@ -268,6 +268,75 @@ export default function ResultsPage() {
                                         })}
                                     </tbody>
                                 </table>
+                            </div>
+
+                            {/* Mobile Card View */}
+                            <div className="d-md-none p-3">
+                                <div className="d-flex flex-column gap-3">
+                                    {attempts.map((attempt) => {
+                                        const percentage = Math.round((attempt.score / attempt.totalQuestions) * 100);
+                                        return (
+                                            <Card key={attempt.id} className="border shadow-sm">
+                                                <Card.Body className="p-3">
+                                                    <div className="d-flex justify-content-between align-items-start mb-3">
+                                                        <div className="d-flex align-items-center gap-2">
+                                                            <div className="bg-primary bg-opacity-10 p-2 rounded-3">
+                                                                <Calendar size={16} className="text-primary" />
+                                                            </div>
+                                                            <div>
+                                                                <div className="fw-semibold small">
+                                                                    {format(new Date(attempt.startTime), "d MMM yyyy", { locale: fr })}
+                                                                </div>
+                                                                <div className="text-muted" style={{ fontSize: "0.75rem" }}>
+                                                                    <Clock size={10} className="me-1" />
+                                                                    {format(new Date(attempt.startTime), "HH:mm")}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <Button
+                                                            variant="light"
+                                                            size="sm"
+                                                            className="rounded-circle p-2"
+                                                            onClick={() => fetchAttemptDetails(attempt.id)}
+                                                        >
+                                                            <Eye size={16} className="text-secondary" />
+                                                        </Button>
+                                                    </div>
+
+                                                    <div className="d-flex justify-content-between align-items-center mb-2">
+                                                        <div>
+                                                            <div className="text-muted small">{t("results.score", "Score")}</div>
+                                                            <div className="fw-bold fs-5">{attempt.score}/{attempt.totalQuestions}</div>
+                                                        </div>
+                                                        <div>
+                                                            {attempt.passed ? (
+                                                                <Badge bg="success" className="px-2 py-1">
+                                                                    <CheckCircle2 size={10} className="me-1" />
+                                                                    {t("results.passed", "Réussi")}
+                                                                </Badge>
+                                                            ) : (
+                                                                <Badge bg="danger" className="px-2 py-1">
+                                                                    <XCircle size={10} className="me-1" />
+                                                                    {t("results.failed", "Échoué")}
+                                                                </Badge>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="d-flex align-items-center gap-2 mb-1">
+                                                        <ProgressBar
+                                                            now={percentage}
+                                                            variant={percentage >= 80 ? "success" : "danger"}
+                                                            className="flex-grow-1"
+                                                            style={{ height: "8px" }}
+                                                        />
+                                                        <span className="fw-bold small">{percentage}%</span>
+                                                    </div>
+                                                </Card.Body>
+                                            </Card>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         </Card.Body>
                     </Card>
