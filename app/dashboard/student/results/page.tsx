@@ -199,7 +199,6 @@ export default function ResultsPage() {
                                             <th className="ps-4 py-3">{t("results.dateTime", "Date & Heure")}</th>
                                             <th className="text-center py-3">{t("results.score", "Score")}</th>
                                             <th className="text-center py-3">{t("results.percentage", "Pourcentage")}</th>
-                                            <th className="text-center py-3">{t("results.percentage", "Pourcentage")}</th>
                                             <th className="text-center py-3">{t("results.result", "Résultat")}</th>
                                             <th className="text-end pe-4 py-3">{t("common.actions", "Actions")}</th>
                                         </tr>

@@ -207,8 +207,6 @@ export default function ManagerResultsPage() {
                                     <th className="py-3">{t("managerResults.score", "Score")}</th>
                                     <th className="py-3">{t("managerResults.status", "Statut")}</th>
                                     <th className="py-3">{t("managerResults.date", "Date")}</th>
-                                    <th className="py-3">{t("managerResults.status", "Statut")}</th>
-                                    <th className="py-3">{t("managerResults.date", "Date")}</th>
                                     <th className="text-end pe-4 py-3">{t("common.actions", "Actions")}</th>
                                 </tr>
                             </thead>
