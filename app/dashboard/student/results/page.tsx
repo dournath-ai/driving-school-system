@@ -3,8 +3,10 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { fr } from 'date-fns/locale';
-import { History, Trophy, TrendingUp, Calendar, Clock, CheckCircle2, XCircle, BarChart3 } from "lucide-react";
-import { Card, Badge, Spinner, Alert, Row, Col, ProgressBar } from "react-bootstrap";
+
+import { History, Trophy, TrendingUp, Calendar, Clock, CheckCircle2, XCircle, BarChart3, Eye, FileText } from "lucide-react";
+import { Card, Badge, Spinner, Alert, Row, Col, ProgressBar, Modal, Button } from "react-bootstrap";
+import QuizResultView from "@/components/quiz/QuizResultView";
 import { useLanguage } from "@/components/LanguageProvider";
 import Link from "next/link";
 
@@ -22,6 +24,11 @@ export default function ResultsPage() {
     const [attempts, setAttempts] = useState<Attempt[]>([]);
     const [loading, setLoading] = useState(true);
 
+    // Detail Modal State
+    const [showDetailModal, setShowDetailModal] = useState(false);
+    const [selectedAttemptDetails, setSelectedAttemptDetails] = useState<any | null>(null);
+    const [loadingDetails, setLoadingDetails] = useState(false);
+
     useEffect(() => {
         fetchResults();
     }, []);
@@ -38,10 +45,29 @@ export default function ResultsPage() {
         }
     };
 
+    const fetchAttemptDetails = async (attemptId: string) => {
+        setLoadingDetails(true);
+        setShowDetailModal(true);
+        setSelectedAttemptDetails(null);
+        try {
+            const res = await fetch(`/api/quiz/results/${attemptId}`);
+            const data = await res.json();
+            if (res.ok) {
+                setSelectedAttemptDetails(data);
+            } else {
+                console.error(data.error);
+            }
+        } catch (error) {
+            console.error("Failed to fetch details", error);
+        } finally {
+            setLoadingDetails(false);
+        }
+    };
+
     const passedCount = attempts.filter(a => a.passed).length;
     const totalAttempts = attempts.length;
     const bestScore = attempts.length > 0 ? Math.max(...attempts.map(a => Math.round((a.score / a.totalQuestions) * 100))) : 0;
-    const averageScore = attempts.length > 0 
+    const averageScore = attempts.length > 0
         ? Math.round(attempts.reduce((sum, a) => sum + (a.score / a.totalQuestions) * 100, 0) / attempts.length)
         : 0;
 
@@ -174,6 +200,7 @@ export default function ResultsPage() {
                                             <th className="text-center py-3">{t("results.score", "Score")}</th>
                                             <th className="text-center py-3">{t("results.percentage", "Pourcentage")}</th>
                                             <th className="text-center py-3">{t("results.result", "Résultat")}</th>
+                                            <th className="text-end pe-4 py-3">{t("common.actions", "Actions")}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -203,8 +230,8 @@ export default function ResultsPage() {
                                                     </td>
                                                     <td className="text-center py-3">
                                                         <div className="d-flex align-items-center justify-content-center gap-2">
-                                                            <ProgressBar 
-                                                                now={percentage} 
+                                                            <ProgressBar
+                                                                now={percentage}
                                                                 variant={percentage >= 80 ? "success" : "danger"}
                                                                 className="flex-grow-1"
                                                                 style={{ maxWidth: "150px", height: "8px" }}
@@ -225,6 +252,16 @@ export default function ResultsPage() {
                                                             </Badge>
                                                         )}
                                                     </td>
+                                                    <td className="text-end pe-4 py-3">
+                                                        <Button
+                                                            variant="light"
+                                                            size="sm"
+                                                            className="rounded-circle p-2"
+                                                            onClick={() => fetchAttemptDetails(attempt.id)}
+                                                        >
+                                                            <Eye size={18} className="text-secondary" />
+                                                        </Button>
+                                                    </td>
                                                 </tr>
                                             );
                                         })}
@@ -233,6 +270,35 @@ export default function ResultsPage() {
                             </div>
                         </Card.Body>
                     </Card>
+
+                    {/* Detail Modal */}
+                    <Modal show={showDetailModal} onHide={() => setShowDetailModal(false)} size="xl" centered scrollable>
+                        <Modal.Header closeButton className="bg-light">
+                            <Modal.Title className="h5 fw-bold d-flex align-items-center gap-2">
+                                <FileText size={20} className="text-primary" />
+                                {t("quiz.review", "Détail du Résultat")}
+                            </Modal.Title>
+                        </Modal.Header>
+                        <Modal.Body className="p-0">
+                            {loadingDetails ? (
+                                <div className="text-center py-5">
+                                    <Spinner animation="border" variant="primary" />
+                                    <p className="mt-3 text-muted">{t("common.loading", "Chargement...")}</p>
+                                </div>
+                            ) : selectedAttemptDetails ? (
+                                <div className="p-3">
+                                    <QuizResultView
+                                        result={selectedAttemptDetails}
+                                        onBack={() => setShowDetailModal(false)}
+                                    />
+                                </div>
+                            ) : (
+                                <div className="text-center py-5 text-muted">
+                                    {t("common.error", "Erreur lors du chargement")}
+                                </div>
+                            )}
+                        </Modal.Body>
+                    </Modal>
                 </>
             )}
         </div>
