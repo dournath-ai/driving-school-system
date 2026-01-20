@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { History as HistoryIcon, Search, User, Filter, CheckCircle2, XCircle, Clock, Calendar, TrendingUp, BarChart3 } from "lucide-react";
-import { Card, Table, Form, InputGroup, Badge, Spinner, Alert, Row, Col, ProgressBar } from "react-bootstrap";
+
+import { History as HistoryIcon, Search, User, Filter, CheckCircle2, XCircle, Clock, Calendar, TrendingUp, BarChart3, Eye, FileText } from "lucide-react";
+import { Card, Table, Form, InputGroup, Badge, Spinner, Alert, Row, Col, ProgressBar, Modal, Button } from "react-bootstrap";
+import QuizResultView from "@/components/quiz/QuizResultView";
 import { useSession } from "next-auth/react";
 import { useLanguage } from "@/components/LanguageProvider";
 
@@ -27,6 +29,11 @@ export default function ManagerResultsPage() {
     const [search, setSearch] = useState("");
     const [filter, setFilter] = useState("ALL");
 
+    // Detail Modal State
+    const [showDetailModal, setShowDetailModal] = useState(false);
+    const [selectedAttemptDetails, setSelectedAttemptDetails] = useState<any | null>(null);
+    const [loadingDetails, setLoadingDetails] = useState(false);
+
     useEffect(() => {
         fetchResults();
     }, []);
@@ -42,6 +49,25 @@ export default function ManagerResultsPage() {
             console.error("Error fetching results:", error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchAttemptDetails = async (attemptId: string) => {
+        setLoadingDetails(true);
+        setShowDetailModal(true);
+        setSelectedAttemptDetails(null);
+        try {
+            const res = await fetch(`/api/quiz/results/${attemptId}`);
+            const data = await res.json();
+            if (res.ok) {
+                setSelectedAttemptDetails(data);
+            } else {
+                console.error(data.error);
+            }
+        } catch (error) {
+            console.error("Failed to fetch details", error);
+        } finally {
+            setLoadingDetails(false);
         }
     };
 
@@ -181,7 +207,9 @@ export default function ManagerResultsPage() {
                                     <th className="py-3">{t("managerResults.score", "Score")}</th>
                                     <th className="py-3">{t("managerResults.status", "Statut")}</th>
                                     <th className="py-3">{t("managerResults.date", "Date")}</th>
-                                    <th className="text-end pe-4 py-3">{t("managerResults.time", "Heure")}</th>
+                                    <th className="py-3">{t("managerResults.status", "Statut")}</th>
+                                    <th className="py-3">{t("managerResults.date", "Date")}</th>
+                                    <th className="text-end pe-4 py-3">{t("common.actions", "Actions")}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -202,8 +230,8 @@ export default function ManagerResultsPage() {
                                             </td>
                                             <td className="py-3">
                                                 <div className="fw-bold">{attempt.score} / {attempt.totalQuestions}</div>
-                                                <ProgressBar 
-                                                    now={percentage} 
+                                                <ProgressBar
+                                                    now={percentage}
                                                     variant={attempt.passed ? "success" : "danger"}
                                                     className="mt-1"
                                                     style={{ height: "6px", width: "80px" }}
@@ -227,10 +255,14 @@ export default function ManagerResultsPage() {
                                                 </div>
                                             </td>
                                             <td className="text-end pe-4 py-3">
-                                                <div className="d-flex align-items-center justify-content-end gap-1 text-muted small">
-                                                    <Clock size={14} />
-                                                    {new Date(attempt.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                </div>
+                                                <Button
+                                                    variant="light"
+                                                    size="sm"
+                                                    className="rounded-circle p-2"
+                                                    onClick={() => fetchAttemptDetails(attempt.id)}
+                                                >
+                                                    <Eye size={18} className="text-secondary" />
+                                                </Button>
                                             </td>
                                         </tr>
                                     );
@@ -247,6 +279,35 @@ export default function ManagerResultsPage() {
                     </div>
                 )}
             </Card>
+
+            {/* Detail Modal */}
+            <Modal show={showDetailModal} onHide={() => setShowDetailModal(false)} size="xl" centered scrollable>
+                <Modal.Header closeButton className="bg-light">
+                    <Modal.Title className="h5 fw-bold d-flex align-items-center gap-2">
+                        <FileText size={20} className="text-primary" />
+                        {t("quiz.review", "Détail du Résultat")}
+                    </Modal.Title>
+                </Modal.Header>
+                <Modal.Body className="p-0">
+                    {loadingDetails ? (
+                        <div className="text-center py-5">
+                            <Spinner animation="border" variant="primary" />
+                            <p className="mt-3 text-muted">{t("common.loading", "Chargement...")}</p>
+                        </div>
+                    ) : selectedAttemptDetails ? (
+                        <div className="p-3">
+                            <QuizResultView
+                                result={selectedAttemptDetails}
+                                onBack={() => setShowDetailModal(false)}
+                            />
+                        </div>
+                    ) : (
+                        <div className="text-center py-5 text-muted">
+                            {t("common.error", "Erreur lors du chargement")}
+                        </div>
+                    )}
+                </Modal.Body>
+            </Modal>
         </div>
     );
 }

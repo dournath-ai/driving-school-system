@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { User, Check, X, Search, Plus, Edit, Trash2, Shield, Clock, Mail, Filter, MoreVertical } from "lucide-react";
-import { Modal, Button, Form, Table, Badge, InputGroup, Spinner, Alert, Dropdown, Card, Row, Col } from "react-bootstrap";
+import { User, Check, X, Search, Plus, Edit, Trash2, Shield, Clock, Mail, Filter, MoreVertical, Eye, FileText, Calendar, CheckCircle2, XCircle } from "lucide-react";
+import { Modal, Button, Form, Table, Badge, InputGroup, Spinner, Alert, Dropdown, Card, Row, Col, ProgressBar } from "react-bootstrap";
+import { format } from "date-fns";
+import { fr } from 'date-fns/locale';
+import QuizResultView from "@/components/quiz/QuizResultView";
 import { useSession } from "next-auth/react";
 import { useLanguage } from "@/components/LanguageProvider";
 
@@ -13,6 +16,19 @@ type UserData = {
     role: "ADMIN" | "MANAGER" | "INSTRUCTOR" | "STUDENT";
     isActive: boolean;
     connectionLimit: number | null;
+};
+
+type Attempt = {
+    id: string;
+    score: number;
+    totalQuestions: number;
+    passed: boolean;
+    startTime: string;
+    endTime: string | null;
+    user?: {
+        name: string;
+        email: string;
+    };
 };
 
 export default function UserManagement() {
@@ -39,6 +55,14 @@ export default function UserManagement() {
     const [password, setPassword] = useState("");
     const [submitting, setSubmitting] = useState(false);
 
+    // Results Modal states
+    const [showResultsModal, setShowResultsModal] = useState(false);
+    const [selectedStudentForResults, setSelectedStudentForResults] = useState<UserData | null>(null);
+    const [studentAttempts, setStudentAttempts] = useState<Attempt[]>([]);
+    const [loadingResults, setLoadingResults] = useState(false);
+    const [selectedAttemptDetails, setSelectedAttemptDetails] = useState<any | null>(null); // For QuizResultView
+    const [fetchingDetails, setFetchingDetails] = useState(false);
+
     useEffect(() => {
         fetchUsers();
     }, []);
@@ -57,14 +81,55 @@ export default function UserManagement() {
         }
     };
 
+    const fetchStudentAttempts = async (userId: string) => {
+        setLoadingResults(true);
+        setStudentAttempts([]);
+        try {
+            const res = await fetch(`/api/quiz/results?userId=${userId}`);
+            const data = await res.json();
+            if (Array.isArray(data)) {
+                setStudentAttempts(data);
+            }
+        } catch (error) {
+            console.error("Failed to fetch attempts", error);
+            setMessage({ text: t("common.error", "Erreur lors du chargement des résultats"), type: 'danger' });
+        } finally {
+            setLoadingResults(false);
+        }
+    };
+
+    const fetchAttemptDetails = async (attemptId: string) => {
+        setFetchingDetails(true);
+        try {
+            const res = await fetch(`/api/quiz/results/${attemptId}`);
+            const data = await res.json();
+            if (res.ok) {
+                setSelectedAttemptDetails(data);
+            } else {
+                alert(data.error || "Error fetching details");
+            }
+        } catch (error) {
+            console.error("Failed to fetch details", error);
+        } finally {
+            setFetchingDetails(false);
+        }
+    };
+
+    const openResultsModal = (user: UserData) => {
+        setSelectedStudentForResults(user);
+        setSelectedAttemptDetails(null);
+        setShowResultsModal(true);
+        fetchStudentAttempts(user.id);
+    };
+
     const handleAddUser = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         // Si l'utilisateur est un MANAGER, forcer le rôle à STUDENT
         if (session?.user?.role === "MANAGER") {
             currentUser.role = "STUDENT" as any;
         }
-        
+
         setSubmitting(true);
         try {
             const res = await fetch("/api/users", {
@@ -91,7 +156,7 @@ export default function UserManagement() {
 
     const handleEditUser = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         // Si l'utilisateur est un MANAGER, s'assurer qu'il ne modifie que des étudiants
         if (session?.user?.role === "MANAGER") {
             // Vérifier que l'utilisateur actuel est bien un étudiant
@@ -103,7 +168,7 @@ export default function UserManagement() {
             // Forcer le rôle à STUDENT pour les managers
             currentUser.role = "STUDENT" as any;
         }
-        
+
         setSubmitting(true);
         try {
             const res = await fetch(`/api/users/${currentUser.id}`, {
@@ -200,10 +265,10 @@ export default function UserManagement() {
                     </div>
                 </div>
                 <div className="col-md-6 text-md-end mt-3 mt-md-0">
-                    <Button className="btn-tunisia px-4 py-2 d-flex align-items-center gap-2" onClick={() => { 
+                    <Button className="btn-tunisia px-4 py-2 d-flex align-items-center gap-2" onClick={() => {
                         const defaultRole = session?.user?.role === "MANAGER" ? "STUDENT" : "STUDENT";
-                        setCurrentUser({ role: defaultRole as any }); 
-                        setShowAddModal(true); 
+                        setCurrentUser({ role: defaultRole as any });
+                        setShowAddModal(true);
                     }}>
                         <Plus size={18} />
                         {t("users.newUser", "Nouvel Utilisateur")}
@@ -295,15 +360,23 @@ export default function UserManagement() {
                                                 <MoreVertical size={20} />
                                             </Dropdown.Toggle>
                                             <Dropdown.Menu align="end">
-                                                <Dropdown.Item 
-                                                    onClick={() => { 
+                                                <Dropdown.Item
+                                                    onClick={() => openResultsModal(user)}
+                                                    disabled={user.role !== "STUDENT"}
+                                                >
+                                                    <Eye size={16} className="me-2" />
+                                                    {t("dashboard.manager.viewResults", "Voir les Résultats")}
+                                                </Dropdown.Item>
+                                                <Dropdown.Divider />
+                                                <Dropdown.Item
+                                                    onClick={() => {
                                                         // Pour les managers, vérifier que l'utilisateur est un étudiant
                                                         if (session?.user?.role === "MANAGER" && user.role !== "STUDENT") {
                                                             setMessage({ text: t("users.managerEditError", "Vous ne pouvez modifier que les étudiants."), type: 'danger' });
                                                             return;
                                                         }
-                                                        setCurrentUser(user); 
-                                                        setShowEditModal(true); 
+                                                        setCurrentUser(user);
+                                                        setShowEditModal(true);
                                                     }}
                                                     disabled={session?.user?.role === "MANAGER" && user.role !== "STUDENT"}
                                                 >
@@ -311,15 +384,15 @@ export default function UserManagement() {
                                                     {t("users.edit", "Modifier")}
                                                 </Dropdown.Item>
                                                 <Dropdown.Divider />
-                                                <Dropdown.Item 
-                                                    onClick={() => { 
+                                                <Dropdown.Item
+                                                    onClick={() => {
                                                         // Pour les managers, vérifier que l'utilisateur est un étudiant
                                                         if (session?.user?.role === "MANAGER" && user.role !== "STUDENT") {
                                                             setMessage({ text: t("users.managerEditError", "Vous ne pouvez supprimer que les étudiants."), type: 'danger' });
                                                             return;
                                                         }
-                                                        setCurrentUser(user); 
-                                                        setShowDeleteModal(true); 
+                                                        setCurrentUser(user);
+                                                        setShowDeleteModal(true);
                                                     }}
                                                     disabled={session?.user?.role === "MANAGER" && user.role !== "STUDENT"}
                                                     className="text-danger"
@@ -357,14 +430,14 @@ export default function UserManagement() {
                                             variant="outline-primary"
                                             size="sm"
                                             className="flex-grow-1"
-                                            onClick={() => { 
+                                            onClick={() => {
                                                 // Pour les managers, vérifier que l'utilisateur est un étudiant
                                                 if (session?.user?.role === "MANAGER" && user.role !== "STUDENT") {
                                                     setMessage({ text: t("users.managerEditError", "Vous ne pouvez modifier que les étudiants."), type: 'danger' });
                                                     return;
                                                 }
-                                                setCurrentUser(user); 
-                                                setShowEditModal(true); 
+                                                setCurrentUser(user);
+                                                setShowEditModal(true);
                                             }}
                                             disabled={session?.user?.role === "MANAGER" && user.role !== "STUDENT"}
                                         >
@@ -375,14 +448,14 @@ export default function UserManagement() {
                                             variant="outline-danger"
                                             size="sm"
                                             className="flex-grow-1"
-                                            onClick={() => { 
+                                            onClick={() => {
                                                 // Pour les managers, vérifier que l'utilisateur est un étudiant
                                                 if (session?.user?.role === "MANAGER" && user.role !== "STUDENT") {
                                                     setMessage({ text: t("users.managerEditError", "Vous ne pouvez supprimer que les étudiants."), type: 'danger' });
                                                     return;
                                                 }
-                                                setCurrentUser(user); 
-                                                setShowDeleteModal(true); 
+                                                setCurrentUser(user);
+                                                setShowDeleteModal(true);
                                             }}
                                             disabled={session?.user?.role === "MANAGER" && user.role !== "STUDENT"}
                                         >
@@ -588,6 +661,133 @@ export default function UserManagement() {
                         {submitting ? <Spinner size="sm" /> : t("common.delete", "Supprimer")}
                     </Button>
                 </Modal.Footer>
+            </Modal>
+
+            {/* User Results Modal */}
+            <Modal show={showResultsModal} onHide={() => setShowResultsModal(false)} size="xl" centered scrollable>
+                <Modal.Header closeButton className="bg-light">
+                    <Modal.Title className="h5 fw-bold d-flex align-items-center gap-2">
+                        <FileText size={20} className="text-primary" />
+                        {selectedAttemptDetails ?
+                            t("quiz.review", "Détail du Résultat") :
+                            `${t("results.title", "Résultats")} - ${selectedStudentForResults?.name}`
+                        }
+                    </Modal.Title>
+                </Modal.Header>
+                <Modal.Body className="p-0">
+                    {selectedAttemptDetails ? (
+                        <div className="p-3">
+                            <Button
+                                variant="link"
+                                className="p-0 mb-3 text-decoration-none d-flex align-items-center gap-2"
+                                onClick={() => setSelectedAttemptDetails(null)}
+                            >
+                                ← {t("common.back", "Retour à la liste")}
+                            </Button>
+                            <QuizResultView
+                                result={selectedAttemptDetails}
+                                onBack={() => setSelectedAttemptDetails(null)}
+                            />
+                        </div>
+                    ) : (
+                        <div className="p-4">
+                            {loadingResults ? (
+                                <div className="text-center py-5">
+                                    <Spinner animation="border" variant="primary" />
+                                    <p className="mt-3 text-muted">{t("common.loading", "Chargement...")}</p>
+                                </div>
+                            ) : studentAttempts.length === 0 ? (
+                                <div className="text-center py-5">
+                                    <FileText size={48} className="text-muted mb-3 opacity-50" />
+                                    <h5 className="text-muted">{t("results.empty", "Aucun résultat trouvé")}</h5>
+                                    <p className="text-muted small">{t("results.emptyDesc", "L'étudiant n'a pas encore passé de test.")}</p>
+                                </div>
+                            ) : (
+                                <div className="table-responsive">
+                                    <table className="table table-hover align-middle">
+                                        <thead className="bg-light">
+                                            <tr>
+                                                <th className="ps-4 text-secondary small text-uppercase">{t("results.dateTime", "Date & Heure")}</th>
+                                                <th className="text-center text-secondary small text-uppercase">{t("results.score", "Score")}</th>
+                                                <th className="text-center text-secondary small text-uppercase">{t("results.status", "Statut")}</th>
+                                                <th className="text-end pe-4 text-secondary small text-uppercase">{t("common.actions", "Actions")}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {studentAttempts.map((attempt) => {
+                                                const percentage = Math.round((attempt.score / attempt.totalQuestions) * 100);
+                                                return (
+                                                    <tr key={attempt.id} style={{ cursor: 'pointer' }} onClick={() => fetchAttemptDetails(attempt.id)}>
+                                                        <td className="ps-4">
+                                                            <div className="d-flex align-items-center gap-3">
+                                                                <div className="bg-light p-2 rounded-3 text-secondary">
+                                                                    <Calendar size={18} />
+                                                                </div>
+                                                                <div>
+                                                                    <div className="fw-medium">
+                                                                        {format(new Date(attempt.startTime), "d MMMM yyyy", { locale: fr })}
+                                                                    </div>
+                                                                    <div className="small text-muted">
+                                                                        {format(new Date(attempt.startTime), "HH:mm")}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="text-center">
+                                                            <div className="d-flex flex-column align-items-center">
+                                                                <span className="fw-bold h5 mb-0 text-dark">{attempt.score}/{attempt.totalQuestions}</span>
+                                                                <div className="d-flex align-items-center gap-2 mt-1" style={{ width: '120px' }}>
+                                                                    <ProgressBar
+                                                                        now={percentage}
+                                                                        variant={percentage >= 80 ? "success" : "danger"}
+                                                                        className="flex-grow-1"
+                                                                        style={{ height: "4px" }}
+                                                                    />
+                                                                    <span className="small text-muted">{percentage}%</span>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="text-center">
+                                                            {attempt.passed ? (
+                                                                <Badge bg="success" className="px-3 py-2 rounded-pill fw-normal">
+                                                                    <CheckCircle2 size={14} className="me-1" />
+                                                                    {t("results.passed", "Réussi")}
+                                                                </Badge>
+                                                            ) : (
+                                                                <Badge bg="danger" className="px-3 py-2 rounded-pill fw-normal">
+                                                                    <XCircle size={14} className="me-1" />
+                                                                    {t("results.failed", "Échoué")}
+                                                                </Badge>
+                                                            )}
+                                                        </td>
+                                                        <td className="text-end pe-4">
+                                                            <Button
+                                                                variant="light"
+                                                                size="sm"
+                                                                className="rounded-circle p-2"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    fetchAttemptDetails(attempt.id);
+                                                                }}
+                                                                disabled={fetchingDetails}
+                                                            >
+                                                                {fetchingDetails && selectedAttemptDetails?.id === attempt.id ? (
+                                                                    <Spinner size="sm" animation="border" />
+                                                                ) : (
+                                                                    <Eye size={18} className="text-secondary" />
+                                                                )}
+                                                            </Button>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </Modal.Body>
             </Modal>
         </div>
     );
