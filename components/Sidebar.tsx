@@ -18,7 +18,12 @@ import {
 } from "lucide-react";
 import { useLanguage } from "./LanguageProvider";
 
-export default function Sidebar() {
+interface SidebarProps {
+    isMobileMenuOpen?: boolean;
+    onCloseMobileMenu?: () => void;
+}
+
+export default function Sidebar({ isMobileMenuOpen = false, onCloseMobileMenu }: SidebarProps) {
     const { data: session } = useSession();
     const pathname = usePathname();
     const role = session?.user?.role;
@@ -100,6 +105,7 @@ export default function Sidebar() {
                             <Link
                                 key={item.name}
                                 href={item.href}
+                                onClick={() => onCloseMobileMenu?.()}
                                 className={`nav-link d-flex align-items-center gap-3 py-2 px-3 rounded-2 transition-all ${isActive
                                     ? 'bg-light text-primary fw-semibold'
                                     : 'text-secondary bg-transparent'
