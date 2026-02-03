@@ -21,6 +21,8 @@ export default function QuestionBank() {
     const [search, setSearch] = useState("");
     const [message, setMessage] = useState<{ text: string, type: 'success' | 'danger' } | null>(null);
 
+    const [selectedSeries, setSelectedSeries] = useState<number | 'all'>('all');
+
     // Modal states
     const [showFormModal, setShowFormModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -238,10 +240,14 @@ export default function QuestionBank() {
         setCurrentQuestion({ ...currentQuestion, options: newOptions });
     };
 
-    const filteredQuestions = questions.filter(q =>
-        q.text.toLowerCase().includes(search.toLowerCase()) ||
-        q.options.some(opt => opt.toLowerCase().includes(search.toLowerCase()))
-    );
+    const filteredQuestions = questions.filter(q => {
+        const matchSearch = q.text.toLowerCase().includes(search.toLowerCase()) ||
+            q.options.some(opt => opt.toLowerCase().includes(search.toLowerCase()));
+        
+        const matchSeries = selectedSeries === 'all' || q.series === selectedSeries;
+
+        return matchSearch && matchSeries;
+    });
 
     return (
         <div className="container-fluid py-4">
@@ -273,20 +279,41 @@ export default function QuestionBank() {
                 </Alert>
             )}
 
-            {/* Search Bar */}
+            {/* Search Bar and Filter */}
             <Card className="border-0 shadow-sm rounded-4 mb-4">
                 <Card.Body className="p-4">
-                    <InputGroup>
-                        <InputGroup.Text className="bg-white border-end-0">
-                            <Search size={18} className="text-muted" />
-                        </InputGroup.Text>
-                        <Form.Control
-                            placeholder={t("questions.search", "Rechercher une question ou une réponse...")}
-                            className="border-start-0 shadow-none"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                        />
-                    </InputGroup>
+                    <Row className="g-3">
+                        <Col md={8} lg={9}>
+                            <InputGroup>
+                                <InputGroup.Text className="bg-white border-end-0">
+                                    <Search size={18} className="text-muted" />
+                                </InputGroup.Text>
+                                <Form.Control
+                                    placeholder={t("questions.search", "Rechercher une question ou une réponse...")}
+                                    className="border-start-0 shadow-none"
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                />
+                            </InputGroup>
+                        </Col>
+                        <Col md={4} lg={3}>
+                            <Form.Select 
+                                value={selectedSeries} 
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setSelectedSeries(val === 'all' ? 'all' : parseInt(val));
+                                }}
+                                className="shadow-none"
+                            >
+                                <option value="all">{t("questions.allSeries", "Toutes les séries")}</option>
+                                {Array.from({ length: 15 }, (_, i) => i + 1).map((num) => (
+                                    <option key={num} value={num}>
+                                        {t("questions.seriesNumber", "Série {number}").replace("{number}", num.toString())}
+                                    </option>
+                                ))}
+                            </Form.Select>
+                        </Col>
+                    </Row>
                 </Card.Body>
             </Card>
 
