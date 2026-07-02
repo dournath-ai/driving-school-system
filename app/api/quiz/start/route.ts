@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../../auth/[...nextauth]/route";
+import { selectQuestionsForMockExam } from "@/lib/exam";
 
 export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
@@ -32,10 +33,9 @@ export async function POST(req: Request) {
         let selectedQuestions;
 
         if (isMockExam) {
-            // Mock exam: random 30 questions from all questions
-            const allQuestions = await prisma.question.findMany({ select: { id: true } });
-            const shuffled = allQuestions.sort(() => 0.5 - Math.random());
-            selectedQuestions = shuffled.slice(0, questionsCount);
+            // Mock exam: balanced random 30 questions from all series using stratified sampling
+            const questionIds = await selectQuestionsForMockExam(questionsCount);
+            selectedQuestions = questionIds.map(id => ({ id }));
         } else {
             // Series quiz: all questions from the specified series
             const seriesQuestions = await prisma.question.findMany({
