@@ -14,7 +14,8 @@ import {
     Car,
     FileText,
     History as HistoryIcon,
-    Languages
+    Languages,
+    AlertCircle
 } from "lucide-react";
 import { useLanguage } from "./LanguageProvider";
 
@@ -58,6 +59,7 @@ export default function Sidebar({ isMobileMenuOpen = false, onCloseMobileMenu }:
         { key: "nav.manageResults", name: "Résultats", href: "/dashboard/manager/results", icon: HistoryIcon, roles: ["MANAGER"] },
         { key: "nav.users", name: "Utilisateurs", href: "/dashboard/manager/users", icon: Users, roles: ["ADMIN"] },
         { key: "nav.questions", name: "Banque de Questions", href: "/dashboard/manager/questions", icon: BookOpen, roles: ["ADMIN", "MANAGER"] },
+        { key: "nav.trafficSigns", name: "Signaux Routiers", href: "/dashboard/traffic-signs", icon: AlertCircle, roles: ["ADMIN", "MANAGER", "STUDENT"] },
         { key: "nav.settings", name: "Settings", href: "/dashboard/settings", icon: Settings, roles: ["ADMIN"] },
     ];
 
