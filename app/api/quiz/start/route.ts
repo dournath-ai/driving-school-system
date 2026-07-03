@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../../auth/[...nextauth]/route";
+import { selectQuestionsForMockExam } from "@/lib/exam";
 
 export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
@@ -11,11 +12,19 @@ export async function POST(req: Request) {
 
     try {
         const body = await req.json();
-        const { series, isMockExam } = body;
+        // Validate: either series (1-15), themeId, or isMockExam should be provided
+        const { series, isMockExam, themeId } = body;
 
-        // Validate: either series (1-15) or isMockExam should be provided
-        if (!isMockExam && (!series || series < 1 || series > 15)) {
+        if (!isMockExam && !themeId && (!series || series < 1 || series > 15)) {
             return NextResponse.json({ error: "Invalid series number (must be 1-15)" }, { status: 400 });
+        }
+
+        if (themeId && isMockExam) {
+            return NextResponse.json({ error: "Cannot start mock exam with a theme" }, { status: 400 });
+        }
+
+        if (themeId && series) {
+            return NextResponse.json({ error: "Cannot specify both theme and series" }, { status: 400 });
         }
 
         // Fetch dynamic settings
@@ -32,14 +41,25 @@ export async function POST(req: Request) {
         let selectedQuestions;
 
         if (isMockExam) {
-            // Mock exam: random 30 questions from all questions
-            const allQuestions = await prisma.question.findMany({ select: { id: true } });
-            const shuffled = allQuestions.sort(() => 0.5 - Math.random());
-            selectedQuestions = shuffled.slice(0, questionsCount);
+            // Mock exam: balanced random 30 questions from all series using stratified sampling
+            const questionIds = await selectQuestionsForMockExam(questionsCount);
+            selectedQuestions = questionIds.map(id => ({ id }));
+        } else if (themeId) {
+            const themeQuestions = await prisma.question.findMany({
+                where: { themeId },
+                select: { id: true }
+            });
+
+            if (themeQuestions.length === 0) {
+                return NextResponse.json({ error: "No questions found for this theme" }, { status: 404 });
+            }
+
+            const shuffled = themeQuestions.sort(() => 0.5 - Math.random());
+            selectedQuestions = shuffled.slice(0, Math.min(questionsCount, shuffled.length));
         } else {
-            // Series quiz: all questions from the specified series
+            // Series quiz: all questions from the specified series (excluding theme questions)
             const seriesQuestions = await prisma.question.findMany({
-                where: { series },
+                where: { series, themeId: null },
                 select: { id: true }
             });
             
@@ -58,7 +78,8 @@ export async function POST(req: Request) {
                 totalQuestions: selectedQuestions.length,
                 score: 0,
                 passed: false,
-                series: isMockExam ? null : series,
+                series: isMockExam || themeId ? null : series,
+                themeId: themeId || null,
                 isMockExam: isMockExam || false,
                 startTime: new Date()
             }

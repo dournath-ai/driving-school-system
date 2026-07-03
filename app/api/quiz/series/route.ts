@@ -18,6 +18,7 @@ export async function GET() {
                 userId,
                 isMockExam: false,
                 series: { not: null },
+                themeId: null,
                 passed: true
             },
             select: {
@@ -44,7 +45,8 @@ export async function GET() {
                 id: true
             },
             where: {
-                series: { gte: 1, lte: 15 }
+                series: { gte: 1, lte: 15 },
+                themeId: null
             }
         });
 

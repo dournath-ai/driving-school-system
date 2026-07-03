@@ -1,10 +1,14 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Edit, Search, AlertCircle, X } from "lucide-react";
+import { Plus, Trash2, Edit, Search, AlertCircle, X, ImageIcon as Image, FileText, Download } from "lucide-react";
 import { Modal, Button, Form, Badge, InputGroup, Spinner, Alert, Card, Row, Col } from "react-bootstrap";
 import { useLanguage } from "@/components/LanguageProvider";
 import TrafficSignFileUpload from "@/components/TrafficSignFileUpload";
+import ImageViewer from "@/components/ImageViewer";
+import PDFViewer from "@/components/PDFViewer";
 
 type TrafficSignFile = {
     id: string;
@@ -38,6 +42,17 @@ export default function TrafficSignsManagement() {
     const [showFormModal, setShowFormModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showUploadModal, setShowUploadModal] = useState(false);
+    const [viewerState, setViewerState] = useState<{
+        type: 'image' | 'pdf' | null;
+        isOpen: boolean;
+        fileUrl: string;
+        fileName: string;
+    }>({
+        type: null,
+        isOpen: false,
+        fileUrl: '',
+        fileName: '',
+    });
 
     const [currentSign, setCurrentSign] = useState<Partial<TrafficSign>>({
         title: "",
@@ -64,6 +79,44 @@ export default function TrafficSignsManagement() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const isImage = (fileType: string): boolean => {
+        return fileType.startsWith("image/");
+    };
+
+    const isPDF = (fileType: string): boolean => {
+        return fileType === "application/pdf";
+    };
+
+    const handleFileClick = (file: TrafficSignFile) => {
+        if (isImage(file.fileType)) {
+            setViewerState({
+                type: 'image',
+                isOpen: true,
+                fileUrl: file.fileUrl,
+                fileName: file.fileName,
+            });
+        } else if (isPDF(file.fileType)) {
+            setViewerState({
+                type: 'pdf',
+                isOpen: true,
+                fileUrl: file.fileUrl,
+                fileName: file.fileName,
+            });
+        }
+    };
+
+    const closeViewers = () => {
+        setViewerState({ ...viewerState, isOpen: false });
+    };
+
+    const formatFileSize = (bytes: number): string => {
+        if (bytes === 0) return "0 Bytes";
+        const k = 1024;
+        const sizes = ["Bytes", "KB", "MB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
     };
 
     const handleOpenFormModal = (sign?: TrafficSign) => {
@@ -225,7 +278,7 @@ export default function TrafficSignsManagement() {
                     {filteredSigns.map((sign) => (
                         <Card key={sign.id} className="shadow-sm">
                             <Card.Body>
-                                <Row className="align-items-start">
+                                <Row className="align-items-start mb-3">
                                     <Col md={8}>
                                         <div className="d-flex align-items-center mb-2 gap-2">
                                             <h5 className="mb-0 fw-bold">{sign.title}</h5>
@@ -250,7 +303,7 @@ export default function TrafficSignsManagement() {
                                         </div>
                                     </Col>
                                     <Col md={4} className="text-end">
-                                        <div className="d-flex gap-2 justify-content-md-end">
+                                        <div className="d-flex gap-2 justify-content-md-end flex-wrap">
                                             <Button
                                                 variant="warning"
                                                 size="sm"
@@ -278,6 +331,125 @@ export default function TrafficSignsManagement() {
                                         </div>
                                     </Col>
                                 </Row>
+
+                                {/* Files Section */}
+                                {sign.files && sign.files.length > 0 && (
+                                    <div className="border-top pt-3">
+                                        <small className="d-block fw-bold text-secondary mb-2">
+                                            {t("trafficSigns.details")}
+                                        </small>
+
+                                        {/* Thumbnail Gallery */}
+                                        <div className="mb-3">
+                                            <div className="d-flex flex-wrap gap-2">
+                                                {sign.files.map((file) => (
+                                                    <div
+                                                        key={file.id}
+                                                        className="position-relative"
+                                                        style={{
+                                                            flex: "0 0 calc(25% - 8px)",
+                                                            minWidth: "80px",
+                                                            cursor: "pointer",
+                                                        }}
+                                                    >
+                                                        {isImage(file.fileType) ? (
+                                                            <div
+                                                                onClick={() => handleFileClick(file)}
+                                                                className="position-relative bg-light rounded overflow-hidden"
+                                                                style={{
+                                                                    paddingBottom: "100%",
+                                                                    border: "1px solid #dee2e6",
+                                                                    transition: "all 0.2s ease",
+                                                                }}
+                                                                onMouseEnter={(e) => {
+                                                                    e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
+                                                                    e.currentTarget.style.transform = "scale(1.05)";
+                                                                }}
+                                                                onMouseLeave={(e) => {
+                                                                    e.currentTarget.style.boxShadow = "none";
+                                                                    e.currentTarget.style.transform = "scale(1)";
+                                                                }}
+                                                            >
+                                                                <img
+                                                                    src={file.fileUrl}
+                                                                    alt={file.fileName}
+                                                                    className="position-absolute top-0 start-0 w-100 h-100"
+                                                                    style={{ objectFit: "cover" }}
+                                                                    onError={(e) => {
+                                                                        (e.target as HTMLImageElement).style.display = "none";
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        ) : (
+                                                            <div
+                                                                onClick={() => handleFileClick(file)}
+                                                                className="bg-light rounded d-flex align-items-center justify-content-center p-2 border"
+                                                                style={{
+                                                                    minHeight: "80px",
+                                                                    cursor: "pointer",
+                                                                    transition: "all 0.2s ease",
+                                                                }}
+                                                                onMouseEnter={(e) => {
+                                                                    e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
+                                                                    e.currentTarget.style.backgroundColor = "#e9ecef";
+                                                                }}
+                                                                onMouseLeave={(e) => {
+                                                                    e.currentTarget.style.boxShadow = "none";
+                                                                    e.currentTarget.style.backgroundColor = "#f8f9fa";
+                                                                }}
+                                                            >
+                                                                <FileText size={20} className="text-muted" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* File List with Details */}
+                                        <div className="d-flex flex-column gap-1">
+                                            {sign.files.map((file) => (
+                                                <div
+                                                    key={file.id}
+                                                    className="d-flex align-items-center justify-content-between p-2 bg-light rounded small"
+                                                >
+                                                    <span className="d-flex align-items-center text-truncate flex-grow-1">
+                                                        {isImage(file.fileType) ? (
+                                                            <Image size={14} className="me-2 flex-shrink-0" />
+                                                        ) : (
+                                                            <FileText size={14} className="me-2 flex-shrink-0" />
+                                                        )}
+                                                        <span title={file.fileName} className="text-truncate">
+                                                            {file.fileName}
+                                                        </span>
+                                                    </span>
+                                                    <small className="text-muted ms-2 flex-shrink-0">
+                                                        ({formatFileSize(file.fileSize)})
+                                                    </small>
+                                                    <div className="d-flex gap-1 ms-2 flex-shrink-0">
+                                                        <button
+                                                            className="btn btn-sm btn-link p-0"
+                                                            onClick={() => handleFileClick(file)}
+                                                            title={t("trafficSigns.view")}
+                                                            style={{ color: "#0d6efd" }}
+                                                        >
+                                                            <Image size={14} />
+                                                        </button>
+                                                        <a
+                                                            href={file.fileUrl}
+                                                            download
+                                                            className="btn btn-sm btn-link p-0"
+                                                            title={t("trafficSigns.download")}
+                                                            style={{ color: "#0d6efd" }}
+                                                        >
+                                                            <Download size={14} />
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </Card.Body>
                         </Card>
                     ))}
@@ -446,6 +618,26 @@ export default function TrafficSignsManagement() {
                     </Button>
                 </Modal.Footer>
             </Modal>
+
+            {/* Image Viewer Modal */}
+            {viewerState.type === 'image' && (
+                <ImageViewer
+                    isOpen={viewerState.isOpen}
+                    imageSrc={viewerState.fileUrl}
+                    fileName={viewerState.fileName}
+                    onClose={closeViewers}
+                />
+            )}
+
+            {/* PDF Viewer Modal */}
+            {viewerState.type === 'pdf' && (
+                <PDFViewer
+                    isOpen={viewerState.isOpen}
+                    pdfUrl={viewerState.fileUrl}
+                    fileName={viewerState.fileName}
+                    onClose={closeViewers}
+                />
+            )}
         </div>
     );
 }
