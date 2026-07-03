@@ -5,37 +5,62 @@ import { authOptions } from "../auth/[...nextauth]/route";
 import { Role } from "@prisma/client";
 import cloudinary from "@/lib/cloudinary";
 
-// Middleware check helper
 const checkAuth = async () => {
     const session = await getServerSession(authOptions);
     if (!session || (session.user.role !== Role.ADMIN && session.user.role !== Role.MANAGER)) {
-        return null; // Unauthorized - Only ADMIN and MANAGER can manage questions
+        return null;
     }
     return session;
-}
+};
 
 const extractPublicId = (url: string) => {
     try {
         const regex = /\/upload\/(?:v\d+\/)?(.+)\.[^.]+$/;
         const match = url.match(regex);
         return match ? match[1] : null;
-    } catch (e) {
+    } catch {
         return null;
     }
 };
 
-export async function GET() {
-    const users = await prisma.question.findMany({
-        orderBy: { createdAt: 'desc' }
+export async function GET(req: Request) {
+    const url = new URL(req.url);
+    const themeId = url.searchParams.get("themeId");
+    const series = url.searchParams.get("series");
+
+    const where: Record<string, unknown> = {};
+
+    if (themeId) {
+        where.themeId = themeId;
+    } else if (series) {
+        where.series = parseInt(series);
+        where.themeId = null;
+    } else {
+        where.themeId = null;
+    }
+
+    const questions = await prisma.question.findMany({
+        where,
+        orderBy: { createdAt: "desc" }
     });
-    return NextResponse.json(users);
+    return NextResponse.json(questions);
 }
 
 export async function POST(req: Request) {
     if (!await checkAuth()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const { text, options, correctAnswer, image, series } = body;
+    const { text, options, correctAnswer, image, series, themeId } = body;
+
+    if (themeId) {
+        if (series !== null && series !== undefined) {
+            return NextResponse.json({ error: "Theme questions cannot be assigned to a series" }, { status: 400 });
+        }
+    } else {
+        if (!series || series < 1 || series > 15) {
+            return NextResponse.json({ error: "Series questions must have a series between 1 and 15" }, { status: 400 });
+        }
+    }
 
     try {
         const question = await prisma.question.create({
@@ -44,11 +69,12 @@ export async function POST(req: Request) {
                 options,
                 correctAnswer,
                 image: image || null,
-                series: series || 1
+                series: themeId ? null : series,
+                themeId: themeId || null
             }
         });
         return NextResponse.json(question);
-    } catch (e) {
+    } catch {
         return NextResponse.json({ error: "Error creating question" }, { status: 500 });
     }
 }
@@ -57,14 +83,28 @@ export async function PATCH(req: Request) {
     if (!await checkAuth()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const { id, text, options, correctAnswer, image, series } = body;
+    const { id, text, options, correctAnswer, image, series, themeId } = body;
 
     try {
-        // Get old question to check for old image
         const oldQuestion = await prisma.question.findUnique({ where: { id } });
+        if (!oldQuestion) {
+            return NextResponse.json({ error: "Question not found" }, { status: 404 });
+        }
 
-        // If there's an old image and a new image is being set, delete the old one
-        if (oldQuestion?.image && image && oldQuestion.image !== image) {
+        const effectiveThemeId = themeId !== undefined ? themeId : oldQuestion.themeId;
+        const effectiveSeries = series !== undefined ? series : oldQuestion.series;
+
+        if (effectiveThemeId) {
+            if (effectiveSeries !== null) {
+                return NextResponse.json({ error: "Theme questions cannot be assigned to a series" }, { status: 400 });
+            }
+        } else {
+            if (!effectiveSeries || effectiveSeries < 1 || effectiveSeries > 15) {
+                return NextResponse.json({ error: "Series questions must have a series between 1 and 15" }, { status: 400 });
+            }
+        }
+
+        if (oldQuestion.image && image && oldQuestion.image !== image) {
             const publicId = extractPublicId(oldQuestion.image);
             if (publicId) {
                 try {
@@ -81,12 +121,13 @@ export async function PATCH(req: Request) {
                 text,
                 options,
                 correctAnswer,
-                image: image || null,
-                series: series !== undefined ? series : 1
+                image: image !== undefined ? image : oldQuestion.image,
+                series: effectiveThemeId ? null : effectiveSeries,
+                themeId: effectiveThemeId
             }
         });
         return NextResponse.json(question);
-    } catch (e) {
+    } catch {
         return NextResponse.json({ error: "Error updating question" }, { status: 500 });
     }
 }
@@ -95,18 +136,15 @@ export async function DELETE(req: Request) {
     if (!await checkAuth()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { searchParams } = new URL(req.url);
-    const id = searchParams.get('id');
+    const id = searchParams.get("id");
 
     if (!id) return NextResponse.json({ error: "Missing ID" }, { status: 400 });
 
     try {
-        // Get question to check for image
         const question = await prisma.question.findUnique({ where: { id } });
 
-        // Delete the question
         await prisma.question.delete({ where: { id } });
 
-        // Delete associated image file from Cloudinary if it exists
         if (question?.image) {
             const publicId = extractPublicId(question.image);
             if (publicId) {
@@ -119,7 +157,7 @@ export async function DELETE(req: Request) {
         }
 
         return NextResponse.json({ success: true });
-    } catch (e) {
+    } catch {
         return NextResponse.json({ error: "Error deleting question" }, { status: 500 });
     }
 }

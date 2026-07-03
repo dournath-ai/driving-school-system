@@ -29,9 +29,9 @@ export async function selectQuestionsForMockExam(totalQuestions: number = 30): P
 
       // Fetch all questions from this series
       const seriesQuestions = await prisma.question.findMany({
-        where: { series },
+        where: { series, themeId: null },
         select: { id: true },
-        orderBy: { id: 'asc' } // Deterministic order for reproducible shuffle
+        orderBy: { id: 'asc' }
       });
 
       if (seriesQuestions.length === 0) {
@@ -100,9 +100,10 @@ export async function checkMockExamUnlock(userId: string) {
     const completedSeries = await prisma.quizAttempt.findMany({
       where: {
         userId,
-        isMockExam: false, // Only series quizzes
+        isMockExam: false,
         series: { not: null },
-        passed: true // Must have passed
+        themeId: null,
+        passed: true
       },
       select: { series: true },
       distinct: ['series'] // Get unique series only

@@ -236,6 +236,7 @@ export default function TrafficSignFileUpload({
                                     <div className="min-w-0">
                                         <a
                                             href={file.fileUrl}
+                                            download={file.fileName}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="text-truncate d-block text-decoration-none"

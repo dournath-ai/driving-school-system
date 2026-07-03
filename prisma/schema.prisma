@@ -163,7 +163,10 @@ model Question {
   image         String?
   options       String[] // Array of strings for options
   correctAnswer Int      // Index of the correct option (0-3)
-  series        Int      // Series number (1-15)
+  series        Int?     // Series number (1-15), null for theme-only questions
+  themeId       String?
+  theme         Theme?   @relation(fields: [themeId], references: [id], onDelete: Cascade)
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   
@@ -177,7 +180,9 @@ model QuizAttempt {
   score     Int
   totalQuestions Int
   passed    Boolean
-  series    Int?         // Series number (1-15), null for mock exam
+  series    Int?         // Series number (1-15), null for mock exam or theme quiz
+  themeId   String?
+  theme     Theme?       @relation(fields: [themeId], references: [id])
   isMockExam Boolean     @default(false)
   startTime DateTime     @default(now())
   endTime   DateTime?
@@ -193,6 +198,19 @@ model QuizResult {
   question       Question    @relation(fields: [questionId], references: [id])
   selectedAnswer Int
   isCorrect      Boolean
+}
+
+
+model Theme {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  image       String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  questions   Question[]
+  quizAttempts QuizAttempt[]
 }
 
 // Road Traffic Signs

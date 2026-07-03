@@ -50,6 +50,15 @@ type Series = {
     questionsCount: number;
 };
 
+type ThemeItem = {
+    id: string;
+    name: string;
+    description?: string | null;
+    image?: string | null;
+    questionsCount: number;
+    completed: boolean;
+};
+
 export default function QuizPage() {
     const { t, language } = useLanguage();
     const [quiz, setQuiz] = useState<QuizState | null>(null);
@@ -57,6 +66,8 @@ export default function QuizPage() {
     const [loading, setLoading] = useState(false);
     const [seriesList, setSeriesList] = useState<Series[]>([]);
     const [loadingSeries, setLoadingSeries] = useState(true);
+    const [themeList, setThemeList] = useState<ThemeItem[]>([]);
+    const [loadingThemes, setLoadingThemes] = useState(true);
     const [pageSettings, setPageSettings] = useState({
         questionsPerQuiz: 30,
         quizTimeLimit: 900,
@@ -98,7 +109,22 @@ export default function QuizPage() {
             }
         };
         fetchSeries();
+        fetchThemes();
     }, []);
+
+    const fetchThemes = async () => {
+        try {
+            const res = await fetch("/api/quiz/themes");
+            const data = await res.json();
+            if (data && !data.error) {
+                setThemeList(data.themes || []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch themes", error);
+        } finally {
+            setLoadingThemes(false);
+        }
+    };
 
     // Fetch settings on mount for the instruction screen
     useEffect(() => {
@@ -206,6 +232,42 @@ export default function QuizPage() {
         }
     };
 
+    const startThemeQuiz = async (themeId: string) => {
+        setLoading(true);
+        try {
+            const res = await fetch("/api/quiz/start", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ themeId })
+            });
+            const data = await res.json();
+
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+
+            setQuiz({
+                attemptId: data.attemptId,
+                questions: data.questions,
+                currentIndex: 0,
+                answers: {},
+                timeRemaining: data.settings.quizTimeLimit,
+                questionTimeRemaining: data.settings.questionTimeLimit,
+                isComplete: false,
+                config: {
+                    questionTimeLimit: data.settings.questionTimeLimit,
+                    quizTimeLimit: data.settings.quizTimeLimit
+                }
+            });
+        } catch (error) {
+            console.error("Failed to start theme quiz", error);
+            alert(t("quiz.error", "Erreur lors du démarrage du quiz"));
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const selectAnswer = (optionIndex: number) => {
         if (!quiz) return;
 
@@ -261,7 +323,12 @@ export default function QuizPage() {
         return (
             <QuizResultView
                 result={result}
-                onBack={() => { setQuiz(null); setResult(null); }}
+                onBack={() => {
+                    setQuiz(null);
+                    setResult(null);
+                    fetchSeries();
+                    fetchThemes();
+                }}
             />
         );
     }
@@ -317,6 +384,74 @@ export default function QuizPage() {
                                             {seriesItem.questionsCount} {t("quiz.questions", "questions")}
                                         </p>
                                         {seriesItem.completed && (
+                                            <span className="badge bg-success">
+                                                {t("quiz.completed", "Terminée")}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* Themes Section */}
+                <div className="row mt-5 mb-4">
+                    <div className="col-12">
+                        <div className="text-center mb-4">
+                            <h2 className="h3 fw-bold">{t("quiz.selectTheme", "Quiz par Thème")}</h2>
+                            <p className="text-muted">
+                                {t("quiz.selectThemeDesc", "Entraînez-vous avec des quiz thématiques supplémentaires")}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {loadingThemes ? (
+                    <div className="text-center py-5">
+                        <div className="spinner-border text-primary" role="status">
+                            <span className="visually-hidden">{t("common.loading", "Chargement...")}</span>
+                        </div>
+                    </div>
+                ) : themeList.length === 0 ? (
+                    <div className="text-center py-4 text-muted">
+                        {t("quiz.noThemes", "Aucun thème disponible pour le moment")}
+                    </div>
+                ) : (
+                    <div className="row g-3">
+                        {themeList.map((theme) => (
+                            <div key={theme.id} className="col-md-4 col-lg-3">
+                                <div
+                                    className={`card border-2 h-100 overflow-hidden transition-all ${theme.completed
+                                        ? "border-success bg-success bg-opacity-5"
+                                        : "border-light hover-border-primary"
+                                        } ${loading || theme.questionsCount === 0 ? "opacity-50" : "cursor-pointer"}`}
+                                    onClick={() => !loading && theme.questionsCount > 0 && startThemeQuiz(theme.id)}
+                                    style={{ cursor: loading || theme.questionsCount === 0 ? "not-allowed" : "pointer" }}
+                                >
+                                    {theme.image ? (
+                                        <div style={{ height: 120, overflow: "hidden" }}>
+                                            <img
+                                                src={theme.image}
+                                                alt={theme.name}
+                                                className="w-100 h-100"
+                                                style={{ objectFit: "cover" }}
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="bg-primary bg-opacity-10 d-flex align-items-center justify-content-center" style={{ height: 120 }}>
+                                            <span className="text-primary fs-2">📚</span>
+                                        </div>
+                                    )}
+                                    <div className="card-body p-3 text-center">
+                                        <h5 className="fw-bold mb-1">{theme.name}</h5>
+                                        {theme.description && (
+                                            <p className="text-muted small mb-2">{theme.description}</p>
+                                        )}
+                                        <p className="text-muted small mb-2">
+                                            {theme.questionsCount} {t("quiz.questions", "questions")}
+                                        </p>
+                                        {theme.completed && (
                                             <span className="badge bg-success">
                                                 {t("quiz.completed", "Terminée")}
                                             </span>
