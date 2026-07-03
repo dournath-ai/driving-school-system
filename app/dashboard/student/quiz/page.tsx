@@ -326,7 +326,9 @@ export default function QuizPage() {
                 onBack={() => {
                     setQuiz(null);
                     setResult(null);
+                    /*
                     fetchSeries();
+                    */
                     fetchThemes();
                 }}
             />
